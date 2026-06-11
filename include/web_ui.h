@@ -2,8 +2,7 @@
 
 #include <Arduino.h>
 #include <ESP8266WiFi.h>
-#include <ESPAsyncTCP.h>
-#include <ESPAsyncWebServer.h>
+#include <ESP8266WebServer.h>
 #include <ArduinoJson.h>
 #include "types.h"
 #include "config_store.h"
@@ -12,10 +11,10 @@
 class WebUi {
  public:
   void begin(AppConfig* cfg, ZoneState zones[MAX_ZONES], ControllerInfo* info, WavinModbus* modbus);
-  void loop() {}
+  void loop();
 
  private:
-  AsyncWebServer server{80};
+  ESP8266WebServer server{80};
   AppConfig* cfg_ = nullptr;
   ZoneState* zones_ = nullptr;
   ControllerInfo* info_ = nullptr;
@@ -23,4 +22,3 @@ class WebUi {
 
   String htmlIndex();
 };
-

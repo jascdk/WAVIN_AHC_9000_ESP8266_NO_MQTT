@@ -57,11 +57,11 @@ void WebUi::begin(AppConfig* cfg, ZoneState zones[MAX_ZONES], ControllerInfo* in
   info_ = info;
   modbus_ = modbus;
 
-  server.on("/", HTTP_GET, [this](AsyncWebServerRequest* req) {
-    req->send(200, "text/html", htmlIndex());
+  server.on("/", HTTP_GET, [this]() {
+    server.send(200, "text/html", htmlIndex());
   });
 
-  server.on("/api/status", HTTP_GET, [this](AsyncWebServerRequest* req) {
+  server.on("/api/status", HTTP_GET, [this]() {
     DynamicJsonDocument doc(4096);
     JsonObject c = doc.createNestedObject("controller");
     c["hwModel"] = info_->hwModel;
@@ -79,32 +79,44 @@ void WebUi::begin(AppConfig* cfg, ZoneState zones[MAX_ZONES], ControllerInfo* in
 
     String out;
     serializeJson(doc, out);
-    req->send(200, "application/json", out);
+    server.send(200, "application/json", out);
   });
 
-  AsyncCallbackJsonWebHandler* setpoint = new AsyncCallbackJsonWebHandler("/api/setpoint", [this](AsyncWebServerRequest* req, JsonVariant& json) {
-    JsonObject obj = json.as<JsonObject>();
-    int zone = obj["zone"] | -1;
-    float t = obj["tempC"] | -100.0f;
+  server.on("/api/setpoint", HTTP_POST, [this]() {
+    String body = server.arg("plain");
+    DynamicJsonDocument doc(256);
+    auto err = deserializeJson(doc, body);
+    if (err) {
+      server.send(400, "application/json", "{\"ok\":false,\"error\":\"bad json\"}");
+      return;
+    }
+
+    int zone = doc["zone"] | -1;
+    float t = doc["tempC"] | -100.0f;
+
     if (zone < 0 || zone >= MAX_ZONES) {
-      req->send(400, "application/json", "{\"ok\":false,\"error\":\"invalid zone\"}");
+      server.send(400, "application/json", "{\"ok\":false,\"error\":\"invalid zone\"}");
       return;
     }
     if (t < MIN_SETPOINT_C || t > MAX_SETPOINT_C) {
-      req->send(400, "application/json", "{\"ok\":false,\"error\":\"temp out of range\"}");
+      server.send(400, "application/json", "{\"ok\":false,\"error\":\"temp out of range\"}");
       return;
     }
-    bool ok = modbus_->setZoneTarget((uint8_t)zone, t);
-    req->send(ok ? 200 : 500, "application/json", ok ? "{\"ok\":true}" : "{\"ok\":false}");
-  });
-  server.addHandler(setpoint);
 
-  server.on("/api/factory-reset", HTTP_POST, [](AsyncWebServerRequest* req) {
+    bool ok = modbus_->setZoneTarget((uint8_t)zone, t);
+    server.send(ok ? 200 : 500, "application/json", ok ? "{\"ok\":true}" : "{\"ok\":false}");
+  });
+
+  server.on("/api/factory-reset", HTTP_POST, []() {
     factoryResetConfig();
-    req->send(200, "application/json", "{\"ok\":true}");
+    server.send(200, "application/json", "{\"ok\":true}");
     delay(300);
     ESP.restart();
   });
 
   server.begin();
+}
+
+void WebUi::loop() {
+  server.handleClient();
 }

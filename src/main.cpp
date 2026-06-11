@@ -88,6 +88,7 @@ void setup() {
 
 void loop() {
   ArduinoOTA.handle();
+  gWeb.loop();
 
   unsigned long now = millis();
   if (now - gLastPoll >= POLL_INTERVAL_MS) {
