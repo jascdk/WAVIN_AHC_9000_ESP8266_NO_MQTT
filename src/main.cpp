@@ -26,11 +26,11 @@ void setupWifiAndPortal() {
 
   WiFiManager wm;
   wm.setSaveConfigCallback(saveCallback);
+  wm.setConfigPortalTimeout(180);
 
   WiFiManagerParameter pDev("dev", "Device name", gCfg.deviceName.c_str(), 32);
   wm.addParameter(&pDev);
 
-  // zone rename fields
   WiFiManagerParameter* zoneParams[MAX_ZONES];
   char idbuf[16];
   char labelbuf[24];
@@ -44,10 +44,7 @@ void setupWifiAndPortal() {
     wm.addParameter(zoneParams[i]);
   }
 
-  if (!wm.autoConnect("WAVIN-ESP01-SETUP")) {
-    delay(1000);
-    ESP.restart();
-  }
+  wm.startConfigPortal("WAVIN-ESP01-SETUP");
 
   gCfg.deviceName = String(pDev.getValue());
   for (int i = 0; i < MAX_ZONES; i++) {
@@ -56,9 +53,8 @@ void setupWifiAndPortal() {
     gZones[i].roomName = gCfg.zoneNames[i];
   }
 
-  if (gShouldSave) {
-    saveConfig(gCfg);
-  }
+  saveConfig(gCfg);
+}
 }
 
 void setupOta() {
